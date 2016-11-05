@@ -143,5 +143,5 @@ case class Entities(hashtags: Seq[Hashtag], media: Seq[Media], urls: Seq[Url], u
 case class Sizes(thumb: Size, large: Size, medium: Size, small: Size)
 case class Size(h: Int, w: Int, resize: String)
 case class Hashtag(indices: Seq[Int], text: String)
-case class Url(display_url: String, expanded_url: String, indices: Seq[Int], url: String)
+case class Url(display_url: Option[String], expanded_url: String, indices: Seq[Int], url: String)
 case class UserMention(id: Long, id_str: String, indices: Seq[Int], name: String, screen_name: String)
