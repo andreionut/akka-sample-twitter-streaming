@@ -8,7 +8,8 @@ import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.HttpHeader.ParsingResult
 import akka.http.scaladsl.model._
 import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.{Sink, Source}
+import akka.stream.scaladsl.{Flow, Sink, Source}
+import akka.util.ByteString
 import com.hunorkovacs.koauth.domain.KoauthRequest
 import com.hunorkovacs.koauth.service.consumer.DefaultConsumerService
 import org.json4s._
@@ -16,6 +17,7 @@ import org.json4s.native.JsonMethods._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+import scala.util.{Failure, Success, Try}
 
 object TwitterStreamer extends App {
 
@@ -50,6 +52,10 @@ object TwitterStreamer extends App {
 		accessTokenSecret
 	) map (_.header)
 
+  def extractFromFireHose: Flow[ByteString, String, Any] = Flow[ByteString]
+    .scan("")((acc, curr) => if (acc.contains("\r\n")) curr.utf8String else acc + curr.utf8String)
+    .filter(_.contains("\r\n"))
+
   def twitterStream() = {
     oauthHeader.map { header =>
       val httpHeaders: List[HttpHeader] = List(
@@ -77,18 +83,29 @@ object TwitterStreamer extends App {
         if (response.status.intValue() != 200) {
           response.entity.dataBytes.runForeach{ x => println(x.utf8String)}
         } else {
-          val source = response.entity.dataBytes
-            .scan("")((acc, curr) => if (acc.contains("\r\n")) curr.utf8String else acc + curr.utf8String)
-            .filter(_.contains("\r\n"))
+          val source = response.entity.dataBytes.via(extractFromFireHose)
           Future(mainStream(source))
         }
       }
     }
   }
 
+  def jsonExtract(json: String): Try[Tweet] = Try(parse(json).extract[Tweet]) match {
+    case Success(t) => Success(t)
+    case Failure(e) =>
+      println("-----")
+      println(e.getMessage)
+      println(json)
+      Failure(e)
+  }
+
+  def extractTweet: Flow[String, Tweet, Any] = Flow[String]
+    .map(jsonExtract)
+    .collect { case Success(t) => t }
+
   def mainStream(source: Source[String, Any]) = {
     val tweets = source
-      .map{ json => parse(json).extract[Tweet] }
+      .via(extractTweet)
       .map(_.text)
 
     tweets.runWith(Sink.foreach(println))
