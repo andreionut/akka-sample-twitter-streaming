@@ -104,7 +104,7 @@ object TwitterStreamer extends App {
     .map(jsonExtract)
     .collect { case Success(t) => t }
 
-  def saveTweet: Sink[Tweet, Any] = Sink.foreach(println)
+  def saveTweet: Sink[Tweet, Any] = Sink.ignore
 
   def tweetStats: Flow[Tweet, String, Any] = Flow[Tweet]
     .map(_.text)
