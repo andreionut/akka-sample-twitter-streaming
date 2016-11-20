@@ -18,9 +18,20 @@ import org.json4s.native.JsonMethods._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
 object TwitterStreamer extends App {
+
+  case class TweetCounts(original: Int, retweet: Int) {
+    val originality = if (original + retweet > 0) {
+      100 * original / (original + retweet)
+    } else {
+      0
+    }
+
+    def increment(count: TweetCounts): TweetCounts = TweetCounts(original + count.original, retweet + count.retweet)
+  }
 
 	//Get your credentials from https://apps.twitter.com and replace the values below
 	private val consumerKey = sys.env("CONSUMER_KEY")
@@ -107,7 +118,21 @@ object TwitterStreamer extends App {
   def saveTweet: Sink[Tweet, Any] = Sink.ignore
 
   def tweetStats: Flow[Tweet, String, Any] = Flow[Tweet]
-    .map(_.text)
+    .map { tweet => if (tweet.retweeted_status.isDefined) { TweetCounts(0,1) } else { TweetCounts(1,0) } }
+    .groupedWithin(20, 10.seconds)
+    .map { tweetCounts =>
+      tweetCounts.reduceLeft(_.increment(_))
+    }
+    .statefulMapConcat{ () =>
+      var totalCount = TweetCounts(0,0)
+      count => {
+        totalCount = totalCount.increment(count)
+        List(totalCount)
+      }
+    }
+    .map { counts =>
+      s"${counts.original} original tweets and ${counts.retweet} retweets. Originality: ${counts.originality}%"
+    }
 
   def mainStream(source: Source[String, Any]) = {
     val g = RunnableGraph.fromGraph(GraphDSL.create() { implicit builder: GraphDSL.Builder[NotUsed] =>
