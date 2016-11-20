@@ -7,8 +7,8 @@ import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.HttpHeader.ParsingResult
 import akka.http.scaladsl.model._
-import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.{Flow, Sink, Source}
+import akka.stream.{ActorMaterializer, ClosedShape}
+import akka.stream.scaladsl.{Flow, GraphDSL, RunnableGraph, Sink, Source}
 import akka.util.ByteString
 import com.hunorkovacs.koauth.domain.KoauthRequest
 import com.hunorkovacs.koauth.service.consumer.DefaultConsumerService
@@ -104,11 +104,14 @@ object TwitterStreamer extends App {
     .collect { case Success(t) => t }
 
   def mainStream(source: Source[String, Any]) = {
-    val tweets = source
-      .via(extractTweet)
-      .map(_.text)
+    val g = RunnableGraph.fromGraph(GraphDSL.create() { implicit b =>
+      import GraphDSL.Implicits._
 
-    tweets.runWith(Sink.foreach(println))
+      source ~> extractTweet ~> Sink.foreach(println)
+
+      ClosedShape
+    })
+    g.run()
   }
 
   twitterStream()
