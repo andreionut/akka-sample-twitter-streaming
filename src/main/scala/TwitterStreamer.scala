@@ -3,12 +3,13 @@
  * NOTE: this may stop working if at any point Twitter does some breaking changes to this API or the JSON structure.
  */
 
+import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.HttpHeader.ParsingResult
 import akka.http.scaladsl.model._
 import akka.stream.{ActorMaterializer, ClosedShape}
-import akka.stream.scaladsl.{Flow, GraphDSL, RunnableGraph, Sink, Source}
+import akka.stream.scaladsl.{Broadcast, Flow, GraphDSL, RunnableGraph, Sink, Source}
 import akka.util.ByteString
 import com.hunorkovacs.koauth.domain.KoauthRequest
 import com.hunorkovacs.koauth.service.consumer.DefaultConsumerService
@@ -103,11 +104,18 @@ object TwitterStreamer extends App {
     .map(jsonExtract)
     .collect { case Success(t) => t }
 
+  def saveTweet: Sink[Tweet, Any] = Sink.foreach(println)
+
+  def tweetStats: Flow[Tweet, String, Any] = Flow[Tweet]
+    .map(_.text)
+
   def mainStream(source: Source[String, Any]) = {
-    val g = RunnableGraph.fromGraph(GraphDSL.create() { implicit b =>
+    val g = RunnableGraph.fromGraph(GraphDSL.create() { implicit builder: GraphDSL.Builder[NotUsed] =>
       import GraphDSL.Implicits._
 
-      source ~> extractTweet ~> Sink.foreach(println)
+      val bcast = builder.add(Broadcast[Tweet](2))
+      source ~> extractTweet ~> bcast ~> saveTweet
+                                bcast ~> tweetStats ~> Sink.foreach(println)
 
       ClosedShape
     })
