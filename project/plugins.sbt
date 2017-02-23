@@ -14,3 +14,4 @@ resolvers += Classpaths.sbtPluginReleases
 addSbtPlugin("au.com.onegeek" %% "sbt-dotenv" % "1.1.36")
 //addSbtPlugin("com.typesafe.sbt" % "sbt-aspectj" % "0.10.6")
 addSbtPlugin("io.kamon" % "aspectj-runner" % "0.1.4")
+addSbtPlugin("org.scoverage" % "sbt-scoverage" % "1.5.0")
