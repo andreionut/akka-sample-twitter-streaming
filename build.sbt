@@ -34,3 +34,5 @@ fork in run := true
 kamon.aspectj.sbt.AspectjRunner.testSettings
 
 mainClass in (Compile, run) := Some("TwitterStreamer")
+
+coverageExcludedPackages := "<empty>"
