@@ -1,5 +1,7 @@
 # akka-sample-twitter-streaming
 
+[![codecov](https://codecov.io/gh/andreionut/akka-sample-twitter-streaming/branch/master/graph/badge.svg)](https://codecov.io/gh/andreionut/akka-sample-twitter-streaming)
+
 This is a working example of Twitter Streaming API client application using `akka-http` and `akka-stream`.
 
 ## Usage
