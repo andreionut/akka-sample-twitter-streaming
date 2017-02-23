@@ -5,10 +5,12 @@ import akka.stream.testkit.scaladsl.{TestSink, TestSource}
 import akka.testkit.TestProbe
 import org.json4s.DefaultFormats
 import org.json4s.native.JsonMethods._
-import org.scalatest.FlatSpec
+import org.scalatest.{FlatSpec, Matchers}
+
+import scala.util.Failure
 
 
-class TwitterStreamerSpec extends FlatSpec {
+class TwitterStreamerSpec extends FlatSpec with Matchers {
   implicit val actorSystem = ActorSystem("test")
   implicit val materializer = ActorMaterializer(ActorMaterializerSettings(actorSystem))
 
@@ -25,6 +27,13 @@ class TwitterStreamerSpec extends FlatSpec {
       .request(1)
       .expectNext(s"2 original tweets and 1 retweets. Originality: 66%")
       .expectComplete()
+  }
+
+  behavior of "jsonExtract"
+
+  it should "fail silently" in {
+    val invalidTweetData = "gsfsd"
+    TwitterStreamer.jsonExtract(invalidTweetData) shouldBe a [Failure[_]]
   }
 }
 
