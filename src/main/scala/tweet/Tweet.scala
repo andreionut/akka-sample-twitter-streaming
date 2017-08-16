@@ -1,3 +1,5 @@
+package tweet
+
 case class Tweet(
 	contributors: Option[Seq[Contributor]],
 	coordinates: Option[Coordinates],
